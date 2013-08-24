@@ -1,0 +1,4 @@
+GreedySnake
+===========
+
+greedy snake game
