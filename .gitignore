@@ -1,0 +1,21 @@
+*.py[cod]
+
+# Packages
+MANIFEST
+build
+dist
+
+# Unit test / coverage reports
+.coverage
+coverage_html_report
+
+# Duplicate report
+duplicate_html_report
+
+# pylint report
+pylint_txt_report
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
