@@ -7,25 +7,28 @@ Created on 2013-8-23
 from Tkinter import *
 import tkMessageBox
 from random import randint
+from gui import *
+import pygame
+from pygame.locals import *
 
 INTERVAL_TIME = 130
-MAX_WIN_WIDTH = 900
-MAX_WIN_HEIGHT = 600
-MAX_WORLD_WIDTH = 30
-MAX_WORLD_HEIGHT = 20
-CELL_WIDTH = MAX_WIN_WIDTH/MAX_WORLD_WIDTH
-CELL_HEIGHT = MAX_WIN_HEIGHT/MAX_WORLD_HEIGHT
+SCREEN_SIZE = (900, 600)
+WORLD_SIZE = (30, 20)
+CELL_WIDTH = SCREEN_SIZE[0]/WORLD_SIZE[0]
+CELL_HEIGHT = SCREEN_SIZE[1]/WORLD_SIZE[1]
 
 class World():
     def __init__(self):
         self.entities = {}
         self.entity_id = 0
+        self.gui = TkinterGUI()
     
     def add_entity(self,entity):
-        self.entities[self.entity_id] = entity
-        entity.id = self.entity_id
-        entity.world = self
-        self.entity_id += 1
+        if self.get_entity(entity.id) == None:
+            self.entities[self.entity_id] = entity
+            entity.id = self.entity_id
+            entity.world = self
+            self.entity_id += 1
     
     def remove_entity(self,entity):
         del self.entities[entity.id]
@@ -38,25 +41,29 @@ class World():
         
     def render(self, surface):
         for entity in self.entities.itervalues():
+            entity.gui = self.gui
             entity.render(surface)
     
-    def process(self):
+    def process(self, time_passed):
         for entity in self.entities.values():
-            entity.process()
+            entity.process(time_passed)
+            
     
     
 class Entity():
     def __init__(self):
         self.world = None
-        self.id = 0
-        self.locations = [(0,0),]
-        self.speed = (0,0)
+        self.id = -1
+        self.locations = [(0., 0.),]
+        self.speed = (0., 0.)
         self.alive = True
+        self.gui = TkinterGUI()
+        self.passed_time = 0
         
     def render(self, surface):
         pass
     
-    def process(self):
+    def process(self, time_passed):
         pass
         
         
@@ -64,38 +71,47 @@ class Snake(Entity):
     def render(self, surface):
         is_header = True
         for loc in self.locations:
-            surface.create_rectangle((loc[0]-1)*CELL_WIDTH, (loc[1]-1)*CELL_HEIGHT, loc[0]*CELL_WIDTH, loc[1]*CELL_HEIGHT, fill="blue")
+            self.gui.create_rectangle(surface, (loc[0]-1)*CELL_WIDTH, (loc[1]-1)*CELL_HEIGHT, loc[0]*CELL_WIDTH, loc[1]*CELL_HEIGHT, fill="blue")
             if is_header:
-                surface.create_line((loc[0]-1)*CELL_WIDTH, (loc[1]-1)*CELL_HEIGHT, loc[0]*CELL_WIDTH, loc[1]*CELL_HEIGHT, fill="red", dash=(4, 4))
-                surface.create_line((loc[0]-1)*CELL_WIDTH, loc[1]*CELL_HEIGHT, loc[0]*CELL_WIDTH, (loc[1]-1)*CELL_HEIGHT, fill="red", dash=(4, 4))
+                self.gui.create_line(surface, (loc[0]-1)*CELL_WIDTH, (loc[1]-1)*CELL_HEIGHT, loc[0]*CELL_WIDTH, loc[1]*CELL_HEIGHT, fill="red", dash=(4, 4))
+                self.gui.create_line(surface, (loc[0]-1)*CELL_WIDTH, loc[1]*CELL_HEIGHT, loc[0]*CELL_WIDTH, (loc[1]-1)*CELL_HEIGHT, fill="red", dash=(4, 4))
                 is_header = False
             
         
-    def process(self):
+    def process(self, time_passed):
+        self.passed_time += time_passed
+        
+        if self.passed_time < INTERVAL_TIME:
+            return
+        
+        self.passed_time = 0
         x = self.locations[0][0] + self.speed[0]
         y = self.locations[0][1] + self.speed[1]
         
-        if x <= 0 or x > MAX_WORLD_WIDTH or y <= 0 or y >MAX_WORLD_HEIGHT:
+        if x <= 0 or x > WORLD_SIZE[0] or y <= 0 or y > WORLD_SIZE[1]:
             self.alive = False
+            return
         
         if self.locations.__contains__((x,y)):
             self.alive = False
+            return
         
         self.locations.insert(0, (x, y))
-        self.locations.remove(self.locations[-1])
         
         for entity in self.world.entities.values():
             if entity.__class__ == Food and entity.locations.__contains__((x,y)):
-                self.locations.insert(0, (x + self.speed[0], y + self.speed[1]))
                 entity.alive = False
+                return
+            
+        self.locations.remove(self.locations[-1])
                 
 
 class Food(Entity):
     def render(self, surface):
         for loc in self.locations:
-            surface.create_rectangle((loc[0]-1)*CELL_WIDTH, (loc[1]-1)*CELL_HEIGHT, loc[0]*CELL_WIDTH, loc[1]*CELL_HEIGHT, fill="red")
+            self.gui.create_rectangle(surface, (loc[0]-1)*CELL_WIDTH, (loc[1]-1)*CELL_HEIGHT, loc[0]*CELL_WIDTH, loc[1]*CELL_HEIGHT, fill="red")
     
-    def process(self):
+    def process(self, time_passed):
         if self.alive == False:
             self.locations = [self._get_random_location()]
             self.alive = True
@@ -104,18 +120,29 @@ class Food(Entity):
     def _get_random_location(self):
         locations = []
         for entity in self.world.entities.values():
-            locations.append(entity.locations)
+            locations.extend(entity.locations)
         while True:
-            x = randint(1, MAX_WORLD_WIDTH)
-            y = randint(1, MAX_WORLD_HEIGHT)
+            x = randint(1, WORLD_SIZE[0])
+            y = randint(1, WORLD_SIZE[1])
             if not locations.__contains__((x,y)):
                 return (x,y)
+
+
+class Message(Entity):
+    def __init__(self):
+        Entity.__init__(self)
+        self.text = ''
+        
+    def render(self, surface):
+        for loc in self.locations:
+            self.gui.create_text(surface, (loc[0]-1)*CELL_WIDTH, (loc[1]-1)*CELL_HEIGHT, self.text)
     
     
-def run():
+def Tkinter_mainloop():
     def key_pressed_handle(event):
         key = event.keysym
         if (key == 'space'):
+            world.remove_entity(tip_message)
             win.after(INTERVAL_TIME, loop)
         elif (key == 'Up' and snake.speed[0] != 0) :
             snake.speed = (0,-1)
@@ -127,7 +154,7 @@ def run():
             snake.speed = (1,0)
         
     def loop():
-        world.process()
+        world.process(INTERVAL_TIME)
         if snake.alive == False:
             if tkMessageBox.showwarning("Game Over!!!", "Game Over!!!"):
                 exit(0)
@@ -136,6 +163,59 @@ def run():
         world.render(canvas)
         win.after(INTERVAL_TIME, loop)
     
+    win = Tk()
+    canvas = Canvas(win, width=SCREEN_SIZE[0], height=SCREEN_SIZE[1] )
+    canvas.bind('<Key>', key_pressed_handle)
+    canvas.pack()
+    canvas.focus_set()
+    win.title('Greedy Snake')
+    world.render(canvas)
+    win.mainloop()
+    
+    
+def Pygame_mainloop():
+    pygame.init()
+    screen = pygame.display.set_mode(SCREEN_SIZE, 0, 32)
+    clock = pygame.time.Clock()
+    is_ready = False
+     
+    while 1:
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                sys.exit(0)
+        
+        screen.fill((255,255,255))
+        pressed_keys = pygame.key.get_pressed()
+        
+        if is_ready:
+            if pressed_keys[K_LEFT] and snake.speed[1] != 0:
+                snake.speed = (-1,0)
+            elif pressed_keys[K_RIGHT] and snake.speed[1] != 0:
+                snake.speed = (1,0)
+            elif pressed_keys[K_UP] and snake.speed[0] != 0:
+                snake.speed = (0,-1)
+            elif pressed_keys[K_DOWN] and snake.speed[0] != 0:
+                snake.speed = (0,1)
+            
+            time_passed = clock.tick(30)
+            
+            if snake.alive:
+                world.process(time_passed)
+            if snake.alive == False:
+                world.add_entity(tip_message)
+                if pressed_keys[K_SPACE]:
+                    pygame.quit()
+                    sys.exit(0)
+        else:
+            if pressed_keys[K_SPACE]:
+                is_ready = True
+                world.remove_entity(tip_message)
+      
+        world.render(screen)
+        pygame.display.update()
+
+
+if __name__ == '__main__':
     world = World()
     snake = Snake()
     snake.locations = [(3,10),(2,10),(1,10)]
@@ -144,18 +224,16 @@ def run():
     food = Food()
     food.locations = [(15,5)]
     world.add_entity(food)
+    tip_message = Message()
+    tip_message.text = 'Press Space to Continue .....'
+    tip_message.locations = [(10, 15)]
+    world.add_entity(tip_message)
     
-    win = Tk()
-    win.title('Greedy Snake')
-    canvas = Canvas(win, width=MAX_WIN_WIDTH, height=MAX_WIN_HEIGHT )
-    canvas.bind('<Key>', key_pressed_handle)
-    canvas.create_text(480,360,text='Press Space to Start Game .....', font=('Arial',28,))
-    canvas.pack()
-    canvas.focus_set()
-    world.render(canvas)
-    win.mainloop()
+    # uncomment next line to use Tkinter GUI Interface 
+#     Tkinter_mainloop()
     
+    # Below is Pygame GUI ...
+    pygame_gui = PygameGUI()
+    world.gui = pygame_gui
+    Pygame_mainloop()
 
-if __name__ == '__main__':
-    run()
-    
