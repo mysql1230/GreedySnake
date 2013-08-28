@@ -6,17 +6,12 @@ Created on 2013-8-26
 
 from distutils.core import setup
 import py2exe
+import sys
 
-options = {
-     "compressed": 1, 
-     "optimize": 2,
-     "ascii": 1,
-     "bundle_files": 1 
-    }
+sys.path.append('snake')
 
-setup(console="snake\game.py")
-# setup(
-#     options = options,
-#     zipfile=None,
-#     console="snake\game.py"
-#     )
+
+setup(console = ["snake/game.py"],
+      options = {'py2exe':{'bundle_files':1,'compressed':1,'optimize':2}},
+      zipfile= None
+      )
