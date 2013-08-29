@@ -157,7 +157,7 @@ def Tkinter_mainloop():
         world.process(INTERVAL_TIME)
         if snake.alive == False:
             if tkMessageBox.showwarning("Game Over!!!", "Game Over!!!"):
-                exit(0)
+                sys.exit(0)
                 
         canvas.delete(ALL)
         world.render(canvas)
@@ -230,7 +230,7 @@ if __name__ == '__main__':
     world.add_entity(tip_message)
     
     # uncomment next line to use Tkinter GUI Interface 
-#     Tkinter_mainloop()
+    Tkinter_mainloop()
     
     # Below is Pygame GUI ...
     pygame_gui = PygameGUI()
